@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {JSDOM} from 'jsdom';
+const dom=new JSDOM(fs.readFileSync('dist/index.html','utf8'),{url:'https://tokenlaunchpad.example/',pretendToBeVisual:true});
+const w=dom.window;w.scrollTo=()=>{};
+for(const k of ['window','document','localStorage','location','FormData'])globalThis[k]=k==='window'?w:w[k];
+globalThis.confirm=()=>true;
+await import('../dist/app.js');
+const route=path=>{w.location.hash=path;w.dispatchEvent(new w.HashChangeEvent('hashchange'));};
+const click=s=>{const b=w.document.querySelector(s);assert.ok(b,'Control exists: '+s);b.click();};
+const text=()=>w.document.body.textContent;
+test('landing has project brand and working workspace routes',()=>{assert.match(text(),/TokenLaunchpad/);route('/explore');assert.equal(w.document.querySelectorAll('.launch-card').length,4);click('[data-filter="Live"]');assert.equal(w.document.querySelectorAll('.launch-card').length,2);click('[data-filter="All"]');});
+test('demo purchase updates allocation and dashboard',()=>{route('/launch/demo-nova');const f=w.document.querySelector('#buy-form');f.elements.amount.value='100';f.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));assert.match(text(),/1,000/);route('/dashboard');assert.match(text(),/Nova Protocol/);assert.match(text(),/9,900/);});
+test('success and refund controls execute correct state transitions',()=>{route('/launch/demo-lumen');click('[data-tx="finalize"]');click('[data-tx="claim"]');assert.equal(w.document.querySelector('[data-tx="claim"]').disabled,true);route('/launch/demo-echo');click('[data-tx="refund"]');assert.equal(w.document.querySelector('[data-tx="refund"]').disabled,true);});
+test('create launch form routes to inventory funding and escapes user text',()=>{route('/create');const f=w.document.querySelector('#create-form');f.elements.name.value='<img src=x onerror=alert(1)>';f.elements.symbol.value='SPY';f.elements.terms.checked=true;f.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));assert.match(w.location.hash,/demo-/);assert.equal(w.document.querySelectorAll('img').length,0);assert.match(text(),/Approve & fund sale/);click('[data-tx="fund"]');assert.match(text(),/Upcoming/);click('[data-action="advance-start"]');assert.ok(w.document.querySelector('#buy-form'));});
+test('navigation retains documented flows and setup guidance',()=>{route('/guide');assert.match(text(),/Contracts do not execute themselves/);route('/setup');assert.ok(w.document.querySelector('#setup-form'));route('/missing');assert.match(text(),/Page not found/);});
