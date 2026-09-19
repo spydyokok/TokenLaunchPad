@@ -1,6 +1,7 @@
 TokenLaunchpad
 
-Live demo: tokenlaunchpad-nu.vercel.app
+Live demo: https://tokenlaunchpad-nu.vercel.app/
+
 
 A backend-free token launchpad: fixed-supply ERC20 creation, immutable USDC presales, escrowed inventory, permissionless settlement, claims and refunds. Dark responsive frontend with a completely separate local demo sandbox.
 
